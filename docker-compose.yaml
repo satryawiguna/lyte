@@ -1,0 +1,123 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: lyte_app
+    restart: unless-stopped
+    tty: true
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./php/local.ini:/usr/local/etc/php/app.conf/local.ini
+    env_file:
+      - .env
+    environment:
+      - APP_NAME=Lyte
+      - APP_URL=http://localhost:8585
+      - DB_CONNECTION=mysql
+      - DB_HOST=lyte_mysql
+      - DB_PORT=3306
+      - DB_DATABASE=lyte
+      - DB_USERNAME=root
+      - DB_PASSWORD=secret
+      - DB_PREFIX=lyte_
+      - DB_CONNECTION_TEST=mysql_test
+      - DB_HOST_TEST=lyte_mysql_test
+      - DB_PORT_TEST=3306
+      - DB_DATABASE_TEST=lyte_test
+      - DB_USERNAME_TEST=root
+      - DB_PASSWORD_TEST=secret
+      - DB_PREFIX_TEST=lyte_
+      - MAIL_MAILER=smtp
+      - MAIL_HOST=smtp.mailtrap.io
+      - MAIL_PORT=2525
+      - MAIL_USERNAME=ba76affb181f58
+      - MAIL_PASSWORD=afff44dfd36493
+      - MAIL_ENCRYPTION=tls
+      - MAIL_FROM_ADDRESS=noreply@lyte.test
+      - MAIL_FROM_NAME="${APP_NAME}"
+    depends_on:
+      - server
+      - database
+      - database-test
+    networks:
+      - lyte_network
+
+  server:
+    build:
+      context: ./
+      dockerfile: Dockerfile_server
+    container_name: lyte_server
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "8585:80"
+      - "643:443"
+    volumes:
+      - ./:/var/www
+    networks:
+      - lyte_network
+
+  database:
+    image: mysql:5.7.22
+    container_name: lyte_mysql
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "6306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql/
+      - ./mysql/my.cnf:/etc/mysql/my.cnf
+    environment:
+      # get .env ref use ${DB_DATABASE}
+      - MYSQL_DATABASE=lyte
+      # get .env ref use ${DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=secret
+      # get .env ref use ${DB_PASSWORD}
+      - MYSQL_PASSWORD=secret
+      # get .env ref use ${DB_USERNAME}
+      - MYSQL_USER=root
+      - SERVICE_TAGS=dev
+      - SERVICE_NAME=mysql
+    networks:
+      - lyte_network
+
+  database-test:
+    image: mysql:5.7.22
+    container_name: lyte_mysql_test
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "7306:3306"
+    volumes:
+      - dbdata_test:/var/lib/mysql/
+      - ./mysql/my.cnf:/etc/mysql/my.cnf
+    environment:
+      # get .env ref use ${DB_DATABASE}
+      - MYSQL_DATABASE=lyte_test
+      # get .env ref use ${DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=secret
+      # get .env ref use ${DB_PASSWORD}
+      - MYSQL_PASSWORD=secret
+      # get .env ref use ${DB_USERNAME}
+      - MYSQL_USER=root
+      - SERVICE_TAGS=dev
+      - SERVICE_NAME=mysql
+    depends_on:
+      - database
+    networks:
+      - lyte_network
+
+networks:
+  lyte_network:
+    name: lyte_network
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
+  dbdata_test:
+    driver: local
